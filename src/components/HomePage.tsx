@@ -125,7 +125,7 @@ export function HomePage({
         ) : (
           <>
             <div className="mb-6">
-              <p className="text-sm text-orange-200">
+              <p className="text-sm text-orange-800">
                 Showing {paginatedCountries.length} of {filteredCountries.length} countries
               </p>
             </div>
