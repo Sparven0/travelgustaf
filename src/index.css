@@ -125,3 +125,10 @@
     font-style: normal;
   }
   
+  .mainpage{
+    background-image: url(https://media.istockphoto.com/id/1170732831/vector/flying-bat-icon-set.webp?a=1&b=1&s=612x612&w=0&k=20&c=wi2YKHTm7Vi2EnDDMDLG_mBbH8PMM95LPjKX71FyJSQ=);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 50%;
+  }

@@ -25,8 +25,8 @@ interface CountryDetailProps {
 export function CountryDetail({ countryCode, onBack }: CountryDetailProps) {
   const [country, setCountry] = useState<any>(null);
   const [weather, setWeather] = useState<any>(null);
-  const [images, setImages] = useState<string[]>([]);
   const [wikiText, setWikiText] = useState<string>("");
+  const [images, setImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,8 +37,9 @@ export function CountryDetail({ countryCode, onBack }: CountryDetailProps) {
   const fetchCountryData = async () => {
     setLoading(true);
     setError(null);
+
     try {
-      // Fetch country data
+      // 1️⃣ Fetch country data
       const countryResponse = await fetch(
         `https://restcountries.com/v3.1/alpha/${countryCode}`
       );
@@ -46,26 +47,61 @@ export function CountryDetail({ countryCode, onBack }: CountryDetailProps) {
       const [countryData] = await countryResponse.json();
       setCountry(countryData);
 
-      // Mock weather data (since we don't have a real API key)
-      const mockWeather = {
-        temp: Math.floor(Math.random() * 30) + 5,
-        condition: ["Sunny", "Cloudy", "Rainy", "Partly Cloudy"][Math.floor(Math.random() * 4)],
-        humidity: Math.floor(Math.random() * 40) + 40,
-        windSpeed: Math.floor(Math.random() * 20) + 5,
-      };
-      setWeather(mockWeather);
+      // 2️⃣ Fetch Wikipedia summary
+      try {
+        const wikiResponse = await fetch(
+          `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
+            countryData.name.common
+          )}`
+        );
+        if (wikiResponse.ok) {
+          const wikiData = await wikiResponse.json();
+          setWikiText(wikiData.extract || "No summary available.");
+        } else {
+          setWikiText("No summary available.");
+        }
+      } catch {
+        setWikiText("No summary available.");
+      }
 
-      // Mock Wikipedia text
-      setWikiText(
-        `${countryData.name.common} is a country located in ${countryData.region}${
-          countryData.subregion ? `, specifically in ${countryData.subregion}` : ""
-        }. The capital city is ${
-          countryData.capital?.[0] || "not specified"
-        }. This information provides a brief overview of the country's geographical and political context.`
-      );
+      // 3️⃣ Fetch Unsplash images
+      try {
+        const unsplashKey = import.meta.env.VITE_UNSPLASH_API_KEY;
+        const unsplashResponse = await fetch(
+          `https://api.unsplash.com/search/photos?query=${encodeURIComponent(
+            countryData.name.common
+          )}&per_page=12&client_id=${unsplashKey}`
+        );
+        if (unsplashResponse.ok) {
+          const data = await unsplashResponse.json();
+          setImages(data.results.map((photo: any) => photo.urls.regular));
+        } else {
+          setImages([]);
+        }
+      } catch {
+        setImages([]);
+      }
 
-      // Images will be fetched separately
-      setImages([]);
+      // 4️⃣ Fetch weather if coordinates available
+      const lat = countryData.capitalInfo?.latlng?.[0];
+      const lon = countryData.capitalInfo?.latlng?.[1];
+      if (lat && lon) {
+        const weatherKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
+        const weatherResponse = await fetch(
+          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${weatherKey}`
+        );
+        if (weatherResponse.ok) {
+          const weatherData = await weatherResponse.json();
+          setWeather({
+            temp: Math.round(weatherData.main.temp),
+            condition: weatherData.weather?.[0]?.main || "Unknown",
+            humidity: weatherData.main.humidity,
+            windSpeed: weatherData.wind.speed,
+          });
+        }
+      } else {
+        setWeather(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -97,44 +133,37 @@ export function CountryDetail({ countryCode, onBack }: CountryDetailProps) {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Country Header */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row gap-6 items-start">
-                  <div className="w-full md:w-48 h-32 flex-shrink-0 bg-gradient-to-br from-blue-100 to-purple-100 rounded-lg overflow-hidden">
-                    <img
-                      src={country.flags.svg || country.flags.png}
-                      alt={country.flags.alt || `Flag of ${country.name.common}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h1 className="mb-2">{country.name.common}</h1>
-                    {country.name.official !== country.name.common && (
-                      <p className="text-gray-600 mb-4">
-                        Official: {country.name.official}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary">{country.region}</Badge>
-                      {country.subregion && (
-                        <Badge variant="outline">{country.subregion}</Badge>
-                      )}
-                    </div>
-                  </div>
+      <main className="container mx-auto px-4 py-10 lg:grid lg:grid-cols-3 lg:gap-10">
+        {/* Left / Main Column */}
+        <div className="lg:col-span-2 space-y-10">
+          {/* Country Header + Info */}
+          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardContent className="p-6 flex flex-col md:flex-row gap-6">
+              <div className="w-full md:w-56 h-40 flex-shrink-0 rounded-xl overflow-hidden shadow-inner transform hover:scale-105 transition-transform duration-300">
+                <img
+                  src={country.flags.svg || country.flags.png}
+                  alt={country.flags.alt || `Flag of ${country.name.common}`}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-3xl font-bold mb-2">{country.name.common}</h2>
+                {country.name.official !== country.name.common && (
+                  <p className="text-gray-600 mb-4">
+                    Official: {country.name.official}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <Badge variant="secondary" className="rounded-full px-3 py-1">
+                    {country.region}
+                  </Badge>
+                  {country.subregion && (
+                    <Badge variant="outline" className="rounded-full px-3 py-1">
+                      {country.subregion}
+                    </Badge>
+                  )}
                 </div>
-              </CardContent>
-            </Card>
-
-            {/* Basic Information */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="mb-6">Country Information</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                   <InfoItem
                     icon={<MapPin className="h-5 w-5 text-blue-600" />}
                     label="Capital"
@@ -166,108 +195,115 @@ export function CountryDetail({ countryCode, onBack }: CountryDetailProps) {
                     value={country.timezones?.[0] || "N/A"}
                   />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </CardContent>
+          </Card>
 
-            {/* About */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="mb-4">About {country.name.common}</h2>
-                <p className="text-gray-700 leading-relaxed mb-4">{wikiText}</p>
-                <p className="text-xs text-gray-500">
-                  Source: Mock Wikipedia data for demonstration purposes
-                </p>
-              </CardContent>
-            </Card>
+          {/* About Section */}
+          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardContent className="p-6">
+              <h2 className="text-2xl font-semibold mb-4">
+                About {country.name.common}
+              </h2>
+              <p className="text-gray-700 leading-relaxed">{wikiText}</p>
+            </CardContent>
+          </Card>
 
-            {/* Gallery */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="mb-6">Photo Gallery</h2>
-                <CountryGallery countryName={country.name.common} />
-              </CardContent>
-            </Card>
-          </div>
+          {/* Gallery */}
+          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardContent className="p-6">
+              <h2 className="text-2xl font-semibold mb-6">Photo Gallery</h2>
+              <CountryGallery images={images} countryName={country.name.common} />
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Weather */}
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Cloud className="h-5 w-5 text-blue-600" />
-                  <h3>Current Weather</h3>
+        {/* Sidebar */}
+        <aside className="space-y-6 lg:sticky lg:top-28">
+          {/* Weather */}
+          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Cloud className="h-5 w-5 text-blue-600" />
+                <h3>Current Weather</h3>
+              </div>
+
+              {weather ? (
+                <div className="space-y-4">
+                  <div className="text-center py-4">
+                    <div className="text-4xl mb-2">{weather.temp}°C</div>
+                    <p className="text-gray-600">{weather.condition}</p>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Droplets className="h-4 w-4 text-blue-500" />
+                        <span>Humidity</span>
+                      </div>
+                      <span>{weather.humidity}%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Wind className="h-4 w-4 text-gray-500" />
+                        <span>Wind Speed</span>
+                      </div>
+                      <span>{weather.windSpeed} km/h</span>
+                    </div>
+                  </div>
                 </div>
-                {weather && (
-                  <div className="space-y-4">
-                    <div className="text-center py-4">
-                      <div className="text-4xl mb-2">{weather.temp}°C</div>
-                      <p className="text-gray-600">{weather.condition}</p>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Droplets className="h-4 w-4 text-blue-500" />
-                          <span>Humidity</span>
-                        </div>
-                        <span>{weather.humidity}%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Wind className="h-4 w-4 text-gray-500" />
-                          <span>Wind Speed</span>
-                        </div>
-                        <span>{weather.windSpeed} km/h</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-4">
-                      Weather data is simulated for demonstration purposes
-                    </p>
+              ) : (
+                <p className="text-gray-500 text-sm">Weather data unavailable</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Quick Facts */}
+          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardContent className="p-6">
+              <h3 className="mb-4">Quick Facts</h3>
+              <div className="space-y-3 text-sm">
+                {country.independent !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Independent</span>
+                    <span>{country.independent ? "Yes" : "No"}</span>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Quick Facts */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="mb-4">Quick Facts</h3>
-                <div className="space-y-3 text-sm">
-                  {country.independent !== undefined && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Independent</span>
-                      <span>{country.independent ? "Yes" : "No"}</span>
-                    </div>
-                  )}
-                  {country.unMember !== undefined && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">UN Member</span>
-                      <span>{country.unMember ? "Yes" : "No"}</span>
-                    </div>
-                  )}
-                  {country.startOfWeek && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Week Starts</span>
-                      <span className="capitalize">{country.startOfWeek}</span>
-                    </div>
-                  )}
-                  {country.car?.side && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Drives On</span>
-                      <span className="capitalize">{country.car.side}</span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+                {country.unMember !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">UN Member</span>
+                    <span>{country.unMember ? "Yes" : "No"}</span>
+                  </div>
+                )}
+                {country.startOfWeek && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Week Starts</span>
+                    <span className="capitalize">{country.startOfWeek}</span>
+                  </div>
+                )}
+                {country.car?.side && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Drives On</span>
+                    <span className="capitalize">{country.car.side}</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </aside>
       </main>
     </div>
   );
 }
 
-function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function InfoItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
   return (
     <div className="flex items-start gap-3">
       <div className="flex-shrink-0 mt-1">{icon}</div>
@@ -279,36 +315,30 @@ function InfoItem({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function CountryGallery({ countryName }: { countryName: string }) {
-  const [images, setImages] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Using Unsplash source URLs for demonstration
-    const mockImages = [
-      `https://source.unsplash.com/800x600/?${encodeURIComponent(countryName)},landscape`,
-      `https://source.unsplash.com/800x600/?${encodeURIComponent(countryName)},city`,
-      `https://source.unsplash.com/800x600/?${encodeURIComponent(countryName)},culture`,
-    ];
-    setImages(mockImages);
-    setLoading(false);
-  }, [countryName]);
-
-  if (loading) {
-    return <div className="text-center text-gray-500">Loading images...</div>;
+function CountryGallery({
+  images,
+  countryName,
+}: {
+  images: string[];
+  countryName: string;
+}) {
+  if (!images || images.length === 0) {
+    return <div className="text-center text-gray-500">No images available</div>;
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 auto-rows-[200px]">
       {images.map((src, index) => (
         <div
           key={index}
-          className="aspect-[4/3] rounded-lg overflow-hidden bg-gray-100"
+          className={`overflow-hidden rounded-xl shadow-md transform transition-transform duration-300 hover:scale-105 ${
+            index === 0 ? "sm:col-span-2 sm:row-span-2" : ""
+          }`}
         >
           <ImageWithFallback
             src={src}
             alt={`View of ${countryName} ${index + 1}`}
-            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-cover"
           />
         </div>
       ))}
