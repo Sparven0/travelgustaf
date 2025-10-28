@@ -5,7 +5,7 @@ import { CountryCard } from "./CountryCard";
 import { PaginationControls } from "./PaginationControls";
 import { LoadingSpinner } from "./LoadingSpinner";
 import { ErrorDisplay } from "./ErrorDisplay";
-import planeicon from "src/assets/planeicon.jpg";
+
 
 interface HomePageProps {
   onCountrySelect: (countryCode: string) => void;
@@ -94,8 +94,8 @@ export function HomePage({
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center gap-3 mb-6">
             <img
-              src={planeicon}
-              alt="pumpkin icon"
+              src="/planeicon.jpg"
+              alt="plane icon"
               className="w-20 rounded-full border-4 border-orange-500 shadow-[0_4px_15px_rgba(255,140,0,0.7)]"
             />
             <h1 className="text-4xl font-extrabold drop-shadow-[3px_3px_0_rgba(0,0,0,0.8)] specialfont">
