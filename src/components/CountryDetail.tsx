@@ -8,8 +8,6 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import {
   ArrowLeft,
   Cloud,
-  Droplets,
-  Wind,
 } from "lucide-react";
 
 interface CountryDetailProps {

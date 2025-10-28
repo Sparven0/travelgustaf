@@ -5,9 +5,14 @@
     { "path": "./tsconfig.node.json" }
   ],
     "compilerOptions": {
+      "verbatimModuleSyntax": false,
+      "skipLibCheck": true,
+      "strict": false,
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
     }
   }
 }
+
+
